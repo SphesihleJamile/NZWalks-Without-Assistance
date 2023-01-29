@@ -1,13 +1,15 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
-using NZWalks.API.Models.Domain;
-using NZWalks.API.Models.DTO;
-using NZWalks.API.Repositories;
+using Microsoft.Extensions.Logging.Abstractions;
+using domain = NZWalks.API.Models.Domain;
+using dto = NZWalks.API.Models.DTO;
+using NZWalks.API.Repositories.Abstract;
+using System.Formats.Asn1;
 
 namespace NZWalks.API.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("api/[controller]/[action]")]
     public class RegionController : Controller
     {
         private readonly IRegionRepository regionRepository;
@@ -19,74 +21,111 @@ namespace NZWalks.API.Controllers
             this.mapper = mapper;
         }
 
+        /// <summary>
+        /// Returs a list of Regions
+        /// </summary>
+        /// <returns></returns>
         [HttpGet]
-        public async Task<IActionResult> GetAllRegions()
+        public async Task<ActionResult<List<dto.Region>>> GetAllRegionsAsync()
         {
-            var domain = await regionRepository.GetAllAsync();
-            if(domain == null || domain.Count() == 0)
+            IEnumerable<domain.Region> regions = await regionRepository.GetAllRegionsAsync();
+            if (regions == null || regions.Count() == 0)
                 return NoContent();
-            var domainDTO = mapper.Map<List<Models.DTO.Region>>(domain);
-            return Ok(domainDTO);
+
+            var regionsDTO = mapper.Map<List<dto.Region>>(regions);
+            return Ok(regionsDTO);
         }
 
+        /// <summary>
+        /// Adds a region to the database
+        /// </summary>
+        /// <param name="addRegionRequest"></param>
+        /// <returns></returns>
+        [HttpPost]
+        public async Task<ActionResult<dto.Region>> AddRegionAsync([FromBody] dto.AddRegionRequest addRegionRequest)
+        {
+            var region = new domain.Region()
+            {
+                Name = addRegionRequest.Name,
+                Code = addRegionRequest.Code,
+                Area = addRegionRequest.Area,
+                Population = addRegionRequest.Population,
+                Lat = addRegionRequest.Lat,
+                Long = addRegionRequest.Long
+            };
+            region = await regionRepository.AddRegionAsync(region);
+            if (region == null) return NoContent();
+            var regionDTO = mapper.Map<dto.Region>(region);
+            return CreatedAtAction(nameof(GetRegionAsync), new { id = region.Id }, regionDTO);
+        }
+
+        /// <summary>
+        /// Finds a region using the id from route, and returns the region if found, and null otherwise
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
         [HttpGet]
         [Route("{id:guid}")]
         [ActionName("GetRegionAsync")]
-        public async Task<IActionResult> GetRegionAsync([FromRoute] Guid id)
+        public async Task<ActionResult<dto.Region>> GetRegionAsync([FromRoute] Guid id)
         {
-            var region = await regionRepository.GetAsync(id);
-            if(region == null)
-                return NotFound();
-            var regionDTO = mapper.Map<Models.DTO.Region>(region);
+            var region = await regionRepository.GetRegionAsync(id);
+            if (region == null) return NotFound();
+            var regionDTO = mapper.Map<dto.Region>(region);
             return Ok(regionDTO);
         }
 
-        [HttpPost]
-        public async Task<IActionResult> AddRegionId([FromBody] AddRegionRequest addRegionRequest)
-        {
-            var domainRegion = new Models.Domain.Region()
-            {
-                Code = addRegionRequest.Code,
-                Name = addRegionRequest.Name,
-                Area = addRegionRequest.Area,
-                Lat = addRegionRequest.Lat,
-                Long = addRegionRequest.Long,
-                Population = addRegionRequest.Population
-            };
-            domainRegion = await regionRepository.AddAsync(domainRegion);
-            if(domainRegion == null)
-                return NoContent();
-            var domainDTO = mapper.Map<Models.DTO.Region>(domainRegion);
-            return CreatedAtAction(nameof(GetRegionAsync), new { id = domainDTO.Id }, domainDTO);
-        }
-
+        /// <summary>
+        /// If there is an existing region with the specified Id, then this controller method will update the existing region with the 
+        ///     information provided in the request body
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="updateRegionRequest"></param>
+        /// <returns></returns>
         [HttpPut]
-        [Route("{id}")]
-        public async Task<IActionResult> UpteRegion([FromRoute] Guid id, [FromBody] UpdateRegionRequest updateRegionRequest)
+        [Route("{id:guid}")]
+        public async Task<ActionResult<dto.Region>> UpdateRegionAsync([FromRoute] Guid id, [FromBody] dto.UpdateRegionRequest updateRegionRequest)
         {
-            var region = new Models.Domain.Region()
+            var region = new domain.Region
             {
-                Code = updateRegionRequest.Code,
                 Name = updateRegionRequest.Name,
+                Code = updateRegionRequest.Code,
                 Area = updateRegionRequest.Area,
+                Population = updateRegionRequest.Population,
                 Lat = updateRegionRequest.Lat,
                 Long = updateRegionRequest.Long,
-                Population = updateRegionRequest.Population
             };
-            region = await regionRepository.UpdateAsync(id, region);
-            if(region == null) return NotFound();
-            var regionDTO = mapper.Map<Models.DTO.Region>(region);
+            region = await regionRepository.UpdateRegionAsync(id, region);
+            if (region == null) return NotFound();
+            var regionDTO = mapper.Map<dto.Region>(region);
             return Ok(regionDTO);
         }
 
+        /// <summary>
+        /// If data with the id does exist, then it will be deleted and true will be returned
+        ///     If no data is found, then the method will return false.
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
         [HttpDelete]
-        [Route("{id}")]
+        [Route("{id:guid}")]
         public async Task<IActionResult> DeleteRegion([FromRoute] Guid id)
         {
-            var region = await regionRepository.DeleteAsync(id);
-            if(region == null) return NotFound();
-            var regionDTO = mapper.Map<Models.DTO.Region>(region);
+            var region = await regionRepository.DeleteRegionAsync(id);
+            if (region == null) return NotFound();
+            var regionDTO = mapper.Map<dto.Region>(region);
             return Ok(regionDTO);
+        }
+
+        /// <summary>
+        /// Deletes all the methods from the database and returns either true/false
+        /// </summary>
+        /// <returns></returns>
+        [HttpDelete]
+        public async Task<ActionResult<Boolean>> DeleteAllRegions()
+        {
+            var result = await regionRepository.DeleteAllRegionsAsync();
+            return Ok(result);
         }
     }
 }

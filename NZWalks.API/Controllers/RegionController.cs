@@ -15,6 +15,11 @@ namespace NZWalks.API.Controllers
         private readonly IRegionRepository regionRepository;
         private readonly IMapper mapper;
 
+        /// <summary>
+        /// RegionController constructor, initializes the regionRepository with dependency injection and initializes the mapper object
+        /// </summary>
+        /// <param name="regionRepository"></param>
+        /// <param name="mapper"></param>
         public RegionController(IRegionRepository regionRepository, IMapper mapper)
         {
             this.regionRepository = regionRepository;
@@ -109,7 +114,7 @@ namespace NZWalks.API.Controllers
         /// <returns></returns>
         [HttpDelete]
         [Route("{id:guid}")]
-        public async Task<IActionResult> DeleteRegion([FromRoute] Guid id)
+        public async Task<ActionResult<dto.Region>> DeleteRegionAsync([FromRoute] Guid id)
         {
             var region = await regionRepository.DeleteRegionAsync(id);
             if (region == null) return NotFound();
@@ -117,15 +122,17 @@ namespace NZWalks.API.Controllers
             return Ok(regionDTO);
         }
 
+
         /// <summary>
         /// Deletes all the methods from the database and returns either true/false
         /// </summary>
         /// <returns></returns>
         [HttpDelete]
-        public async Task<ActionResult<Boolean>> DeleteAllRegions()
+        public async Task<ActionResult<Boolean>> DeleteAllRegionsAsync()
         {
             var result = await regionRepository.DeleteAllRegionsAsync();
             return Ok(result);
         }
+
     }
 }
